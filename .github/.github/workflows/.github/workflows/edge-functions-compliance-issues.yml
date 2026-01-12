@@ -1,0 +1,94 @@
+name: Edge Functions – Create Compliance Issues
+
+on:
+  workflow_run:
+    workflows: ["Edge Functions – Service Role Compliance"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  create-issues:
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download compliance artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: edge-functions-service-role-violations
+
+      - name: Create compliance issues (deduplicated & mapped)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const violators = JSON.parse(
+              fs.readFileSync('edge_functions_violators.json', 'utf8')
+            );
+
+            if (!violators || violators.length === 0) {
+              console.log('No compliance violations found.');
+              return;
+            }
+
+            const ownerMap = JSON.parse(
+              fs.readFileSync('.github/compliance-owner-map.json', 'utf8')
+            );
+
+            for (const v of violators) {
+              const complianceId = `EDGE-SERVICE-ROLE:${v.slug}`;
+              const title = `[COMPLIANCE] ${v.slug} usa service_role sem revisão`;
+
+              // Evitar duplicados
+              const search = await github.rest.search.issuesAndPullRequests({
+                q: `${complianceId} repo:${context.repo.owner}/${context.repo.repo} is:issue is:open`
+              });
+
+              if (search.data.total_count > 0) {
+                console.log(`Issue já existe para ${v.slug}.`);
+                continue;
+              }
+
+              // Resolver owner → GitHub usernames
+              const assignees = ownerMap[v.owner];
+              if (!assignees) {
+                throw new Error(
+                  `Owner "${v.owner}" não mapeado em .github/compliance-owner-map.json`
+                );
+              }
+
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body: `
+**Compliance-ID:** ${complianceId}
+
+**Resumo**
+Edge Function utiliza **service_role** sem revisão registrada.
+
+**Detalhes**
+- Slug: \`${v.slug}\`
+- Owner lógico: \`${v.owner}\`
+- Writes tables: ${JSON.stringify(v.writes_tables)}
+- Status: ${v.status}
+- Created at: ${v.created_at}
+
+**Ações obrigatórias**
+- Confirmar necessidade de service_role
+- Preencher \`audit_last_review\`
+- Documentar impacto e mitigação
+
+_Este issue é gerado automaticamente pelo pipeline de governance._
+`,
+                assignees,
+                labels: ['compliance', 'security', 'service-role']
+              });
+            }
