@@ -1,0 +1,56 @@
+name: Edge Functions – Service Role Compliance
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1" # semanal (segunda-feira)
+
+jobs:
+  compliance-scan:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client jq
+
+      - name: Run compliance query and export CSV/JSON
+        env:
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPORT: ${{ secrets.PGPORT }}
+          PGDATABASE: ${{ secrets.PGDATABASE }}
+          PGUSER: ${{ secrets.PGUSER }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+        run: |
+          psql "host=$PGHOST port=$PGPORT dbname=$PGDATABASE user=$PGUSER password=$PGPASSWORD" -c "\copy (
+            select id, slug, owner, uses_service_role, writes_tables, status, created_at, updated_at
+            from app.edge_functions_registry
+            where uses_service_role = true
+              and audit_last_review is null
+            order by created_at
+          ) to 'edge_functions_violators.csv' with csv header"
+
+          psql "host=$PGHOST port=$PGPORT dbname=$PGDATABASE user=$PGUSER password=$PGPASSWORD" -t -A -F"," -c \
+            "select json_agg(t) from (
+              select id, slug, owner, uses_service_role, writes_tables, status, created_at, updated_at
+              from app.edge_functions_registry
+              where uses_service_role = true
+                and audit_last_review is null
+              order by created_at
+            ) t;" | jq '.' > edge_functions_violators.json
+
+          echo "Violations found:"
+          jq length edge_functions_violators.json
+
+      - name: Upload compliance artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge-functions-service-role-violations
+          path: |
+            edge_functions_violators.csv
+            edge_functions_violators.json
