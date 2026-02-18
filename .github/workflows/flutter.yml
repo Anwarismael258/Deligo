@@ -1,0 +1,53 @@
+name: Flutter CI - Deligo
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout do código
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Setup Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.22.2"
+          channel: "stable"
+
+      # 3️⃣ Instalar dependências
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 4️⃣ Gerar .env a partir dos Secrets
+      - name: Create .env file
+        run: |
+          echo "ENV=${{ secrets.ENV }}" >> .env
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+          echo "FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}" >> .env
+          echo "FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY }}" >> .env
+          echo "FIREBASE_MESSAGING_SENDER_ID=${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}" >> .env
+
+      # 5️⃣ Análise estática
+      - name: Flutter analyze
+        run: flutter analyze
+
+      # 6️⃣ Testes unitários
+      - name: Run tests
+        run: flutter test
+
+      # 7️⃣ Gerar código (Freezed / JsonSerializable)
+      - name: Generate code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      # 8️⃣ Build APK (debug por enquanto)
+      - name: Build APK
+        run: flutter build apk --debug
