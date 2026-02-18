@@ -1,0 +1,12 @@
+- name: Create .env file
+  run: |
+    echo "ENV=production" >> .env
+    echo "MPESA_PRODUCTION_SHORTCODE=${{ secrets.MPESA_PRODUCTION_SHORTCODE }}" >> .env
+    echo "MPESA_PRODUCTION_PASSKEY=${{ secrets.MPESA_PRODUCTION_PASSKEY }}" >> .env
+    echo "MPESA_CONSUMER_KEY=${{ secrets.MPESA_CONSUMER_KEY }}" >> .env
+    echo "MPESA_CONSUMER_SECRET=${{ secrets.MPESA_CONSUMER_SECRET }}" >> .env
+    echo "SUPABASE_PRODUCTION_URL=${{ secrets.SUPABASE_PRODUCTION_URL }}" >> .env
+    echo "SUPABASE_PRODUCTION_ANON_KEY=${{ secrets.SUPABASE_PRODUCTION_ANON_KEY }}" >> .env
+    echo "FIREBASE_PRODUCTION_PROJECT=${{ secrets.FIREBASE_PRODUCTION_PROJECT }}" >> .env
+    echo "SSL_CERT_PATH=${{ secrets.SSL_CERT_PATH }}" >> .env
+    echo "SSL_KEY_PATH=${{ secrets.SSL_KEY_PATH }}" >> .env
