@@ -2,7 +2,7 @@ name: Order Ops Sweep
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "* * * * *"
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,8 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ORDER_OPS_ADMIN_EMAIL: ${{ secrets.ORDER_OPS_ADMIN_EMAIL }}
+      ORDER_OPS_ADMIN_PASSWORD: ${{ secrets.ORDER_OPS_ADMIN_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -28,8 +29,11 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:SUPABASE_ANON_KEY)) {
             throw "Missing SUPABASE_ANON_KEY GitHub secret."
           }
-          if ([string]::IsNullOrWhiteSpace($env:SUPABASE_SERVICE_ROLE_KEY)) {
-            throw "Missing SUPABASE_SERVICE_ROLE_KEY GitHub secret."
+          if ([string]::IsNullOrWhiteSpace($env:ORDER_OPS_ADMIN_EMAIL)) {
+            throw "Missing ORDER_OPS_ADMIN_EMAIL GitHub secret."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:ORDER_OPS_ADMIN_PASSWORD)) {
+            throw "Missing ORDER_OPS_ADMIN_PASSWORD GitHub secret."
           }
 
       - name: Invoke Order Ops Sweep
@@ -38,6 +42,7 @@ jobs:
           ./scripts/invoke_order_ops_sweep.ps1
           -ProjectUrl $env:SUPABASE_URL
           -AnonKey $env:SUPABASE_ANON_KEY
-          -ServiceRoleKey $env:SUPABASE_SERVICE_ROLE_KEY
+          -AdminEmail $env:ORDER_OPS_ADMIN_EMAIL
+          -AdminPassword $env:ORDER_OPS_ADMIN_PASSWORD
           -DispatchLimit 50
           -ProcessDispatches $true
