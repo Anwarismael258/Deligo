@@ -1,0 +1,43 @@
+name: Order Ops Sweep
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Secrets
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SUPABASE_URL)) {
+            throw "Missing SUPABASE_URL GitHub secret."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:SUPABASE_ANON_KEY)) {
+            throw "Missing SUPABASE_ANON_KEY GitHub secret."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:SUPABASE_SERVICE_ROLE_KEY)) {
+            throw "Missing SUPABASE_SERVICE_ROLE_KEY GitHub secret."
+          }
+
+      - name: Invoke Order Ops Sweep
+        shell: pwsh
+        run: >
+          ./scripts/invoke_order_ops_sweep.ps1
+          -ProjectUrl $env:SUPABASE_URL
+          -AnonKey $env:SUPABASE_ANON_KEY
+          -ServiceRoleKey $env:SUPABASE_SERVICE_ROLE_KEY
+          -DispatchLimit 50
+          -ProcessDispatches $true
